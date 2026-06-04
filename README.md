@@ -1,153 +1,120 @@
-# 🤖 NexaReply — AI WhatsApp Enquiry Automation
+# 🌍 GWL Bot — Goodwill Language Solution Automated Backend
 
-> Automates WhatsApp customer enquiry responses for businesses using AI, so no enquiry goes unanswered — even when you're away.
+> A dual-channel, AI-powered customer support backend. Automates official WhatsApp Cloud API interactions and website chat enquiries using interactive menus and Groq's LLaMA 3.3 AI, ensuring no client goes unanswered.
 
 ---
 
 ## 🎯 What It Does
 
-NexaReply is an AI-powered WhatsApp automation system that monitors incoming messages and replies automatically using Groq's LLaMA 3.3 70B model. Built for businesses to handle customer enquiries 24/7 without human intervention.
+GWL Bot is an enterprise-grade automated backend built with FastAPI. It handles incoming customer requests via the **official Meta WhatsApp Cloud API** and a custom **Glassmorphism Web Chat Widget**. It guides users through interactive service menus (lists and buttons) and intelligently falls back on Groq's LLaMA 3.3 70B AI for custom inquiries, seamlessly handing over complex requests to human specialists.
 
 ---
 
 ## ✨ Features
 
-- 🤖 **AI-Powered Replies** — Powered by Groq LLaMA 3.3 70B for intelligent, context-aware responses
-- 🌐 **Multilingual** — Automatically detects and replies in English, Hindi, or Hinglish
-- 😊 **Sentiment Detection** — Handles angry, happy, urgent, and complaint messages differently
-- 🧠 **Conversation Memory** — Remembers last 10 messages for context-aware replies
-- ⏸️ **Pause/Resume** — Press F9 anytime to take over manually, F9 again to resume
-- 📝 **Chat Log** — Saves all conversations to `chat_history.txt` for review
-- 🏢 **Business Focused** — Pre-configured with company info, services, and support details
-
----
-
-## 📸 Demo
-
-### English Enquiries
-![English Demo](screenshots/english.png)
-
-### Hindi Support
-![Hindi Demo](screenshots/hindi.png)
-
-### Chat Log
-![Chat Log](screenshots/chatlog.png)
-
-### Terminal Output
-![Terminal](screenshots/terminal.png)
+- 📱 **Dual-Channel Support** — Operates simultaneously on WhatsApp (via Meta API) and your website (via custom HTML/JS widget).
+- 🖱️ **Interactive Menus** — Fully automated, clickable UI flows (Lists and Quick Reply Buttons) so clients don't have to type out choices.
+- 🤖 **AI-Powered Fallback** — Uses Groq LLaMA 3.3 70B for intelligent, context-aware responses when a user asks a custom question outside the menu flow.
+- 👥 **Seamless Human Takeover** — Generates secure Reference Tokens and silently pauses the bot when a client requests a live agent, alerting your team in the Meta Business Suite.
+- 🧠 **Session Memory** — Tracks user states (Bot mode vs. Human mode) and remembers conversation history for contextual AI replies.
+- 🏢 **Business Focused** — Pre-configured for Goodwill Language Solution's document translation, interpretation, and language class services.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Tool | Purpose |
-|------|---------|
-| Python 3.13 | Core language |
-| Groq API (LLaMA 3.3) | AI responses |
-| PyAutoGUI | Screen automation and chat selection |
-| Pyperclip | Clipboard management for reading/sending messages |
-| Keyboard | Hotkey detection for pause/resume |
-| python-dotenv | Secure API key management |
+| Technology | Purpose |
+|------------|---------|
+| **Python 3** | Core backend language |
+| **FastAPI & Uvicorn** | High-performance async web server & webhook router |
+| **Meta WhatsApp API** | Official Cloud API for sending/receiving WhatsApp messages |
+| **Groq API (LLaMA 3.3)** | Lightning-fast LLM for dynamic customer interactions |
+| **HTML/CSS/JS** | Custom front-end web widget with a futuristic UI |
+| **python-dotenv** | Secure environment variable management |
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Local Development)
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/tushar07127/nexareply.git
-cd nexareply
+git clone [https://github.com/IrijahBen/gwl_bot.git](https://github.com/IrijahBen/gwl_bot.git)
+cd gwl_bot
+
 ```
 
 ### 2. Install dependencies
+
 ```bash
 pip install -r requirements.txt
+
 ```
 
-### 3. Set up API key
-Create a `.env` file:
-```
+### 3. Set up Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
 GROQ_API_KEY=your_groq_api_key_here
+WHATSAPP_ACCESS_TOKEN=your_meta_system_user_token_here
+WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id_here
+WHATSAPP_VERIFY_TOKEN=goodwill_secure_webhook_token_2026
+
 ```
 
-Get your free key at: https://console.groq.com
+### 4. Run the Server
 
-### 4. Configure your screen coordinates
-Run this to find your WhatsApp Web coordinates:
+Start the FastAPI application:
+
 ```bash
-python get_cursor.py
-```
-Update the coordinates in `main.py` to match your screen.
+python app.py
 
-### 5. Run as Administrator
-```bash
-python main.py
 ```
+
+The server will run on `http://0.0.0.0:8000`. You can open `index.html` in your browser to test the web widget locally.
 
 ---
 
-## ⌨️ Controls
+## ☁️ Deployment (Render / Cloud)
 
-| Key | Action |
-|-----|--------|
-| F9 | Pause/Resume bot |
-| Ctrl+C | Stop bot completely |
+This bot is optimized for deployment on cloud platforms like Render or Railway.
+
+1. Connect your GitHub repository to Render as a **Web Service**.
+2. Set the Build Command: `pip install -r requirements.txt`
+3. Set the Start Command: `uvicorn app:app --host 0.0.0.0 --port $PORT`
+4. Add your `.env` variables in the Render dashboard.
+5. Update your Meta Developer Dashboard with the generated secure `https://` webhook URL.
 
 ---
 
 ## 🗂️ Project Structure
 
-```
-nexareply/
+```text
+gwl_bot/
 │
-├── main.py           # Main bot logic
-├── ai.py             # Groq AI integration
-├── get_cursor.py     # Helper to find screen coordinates
-├── requirements.txt  # Dependencies
-├── .env              # API keys (not pushed to GitHub)
-├── .gitignore        # Ignores sensitive files
-└── README.md         # This file
+├── app.py             # Main FastAPI server, webhooks, and routing logic
+├── index.html         # Front-end Web Chat Widget with Bottom Sheet Modal
+├── requirements.txt   # Python dependencies
+├── .env               # API keys and tokens (not pushed to GitHub)
+├── .gitignore         # Ignores sensitive files and environments
+└── README.md          # Project documentation
+
 ```
 
 ---
 
-## ⚙️ Customization
+## 🧠 AI & Meta Integration
 
-To configure for your business, update the system prompt in `ai.py`:
-
-```python
-- Company Name
-- Services offered
-- Working hours
-- Support email and phone
-- Location
-```
-
----
-
-## ⚠️ Requirements
-
-- Windows OS
-- Python 3.13
-- WhatsApp Web open in browser
-- Internet connection
-- Run as Administrator (required for hotkey detection)
-
----
-
-## 🧠 AI Integration
-
-NexaReply uses **Groq's LLaMA 3.3 70B** — one of the fastest open source AI models available. Unlike rule-based bots, NexaReply understands context, detects sentiment, and generates human-like responses in real time. It can handle unlimited types of enquiries without any pre-programmed responses.
-
----
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
+Unlike basic rule-based bots, GWL Bot leverages Meta's official interactive payloads to ensure a native, app-like experience on WhatsApp. If a user bypasses the menu, the integration with **Groq's LLaMA 3.3 70B** allows the bot to understand context, answer questions politely, and gracefully guide the user back to the official service menus.
 
 ---
 
 ## 👨‍💻 Author
 
-**Tushar Verma**  
-GitHub: [@tushar07127](https://github.com/tushar07127)
+**Ajiboye Abayomi Adewole (IrijahBen)**
+
+GitHub: [@IrijahBen](https://github.com/IrijahBen)
+
+```
+
+```

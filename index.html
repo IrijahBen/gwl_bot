@@ -1,0 +1,262 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goodwill Language Solution Live Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050a12;
+            --container-bg: rgba(20, 30, 45, 0.6);
+            --header-bg: rgba(11, 65, 130, 0.3);
+            --accent-cyan: #00f2fe;
+            --accent-blue: #4facfe;
+            --text-main: #f0f6fc;
+            --text-muted: #8b9bb4;
+            --agent-bubble: #1a2331;
+            --border-color: rgba(0, 242, 254, 0.2);
+        }
+
+        body { 
+            font-family: 'Poppins', sans-serif; background: var(--bg-color); 
+            background-image: radial-gradient(at 10% 10%, rgba(11, 65, 130, 0.3) 0px, transparent 50%), radial-gradient(at 90% 90%, rgba(0, 242, 254, 0.15) 0px, transparent 50%);
+            margin: 0; padding: 0; height: 100vh; color: var(--text-main);
+        }
+
+        #chat-container { 
+            width: 380px; position: fixed; bottom: 30px; right: 30px; 
+            background: var(--container-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px; border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); overflow: hidden; 
+            display: flex; flex-direction: column; height: 550px;
+        }
+
+        #chat-header { 
+            background: var(--header-bg); color: var(--text-main); padding: 15px 20px; font-weight: 600; font-size: 15px; 
+            display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color); z-index: 2;
+        }
+        
+        #chat-logs { 
+            flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; position: relative;
+        }
+        #chat-logs::-webkit-scrollbar { width: 5px; }
+        #chat-logs::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 5px; }
+
+        .bubble { 
+            padding: 12px 15px; font-size: 13.5px; line-height: 1.5; word-wrap: break-word; position: relative; max-width: 80%; animation: fadeIn 0.3s ease-out;
+        }
+        .bubble.agent { background: var(--agent-bubble); color: var(--text-main); align-self: flex-start; border-radius: 16px 16px 16px 4px; border: 1px solid rgba(255,255,255,0.05); }
+        .bubble.client { background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 100%); color: #050a12; align-self: flex-end; border-radius: 16px 16px 4px 16px; font-weight: 600; }
+        .bubble strong { font-weight: 600; }
+
+        /* INLINE BUTTONS (Quick Replies like "Get a Quote") */
+        .inline-btns-container { display: flex; flex-direction: column; gap: 6px; align-self: flex-start; max-width: 85%; }
+        .inline-btn { 
+            background: rgba(11, 65, 130, 0.4); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); 
+            padding: 10px 14px; border-radius: 10px; font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: 0.2s; text-align: center;
+        }
+        .inline-btn:hover { background: var(--accent-cyan); color: #050a12; }
+
+        /* LIST TRIGGER BUTTON (The button that opens the modal) */
+        .list-trigger-btn {
+            background: var(--text-main); color: #050a12; border: none; padding: 12px; border-radius: 10px;
+            font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13.5px; cursor: pointer; width: 100%;
+            text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin-top: 5px; transition: 0.2s;
+        }
+        .list-trigger-btn:hover { background: var(--accent-cyan); }
+
+        /* 📱 BOTTOM SHEET MODAL (Mimics WhatsApp Menu UI) */
+        #list-modal {
+            position: absolute; bottom: -100%; left: 0; width: 100%; height: 75%; 
+            background: #0a0f1a; border-top: 1px solid var(--border-color); border-top-left-radius: 20px; border-top-right-radius: 20px;
+            transition: bottom 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); z-index: 10; display: flex; flex-direction: column;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.5);
+        }
+        #list-modal.open { bottom: 0; }
+        
+        .modal-header { 
+            padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 15px;
+        }
+        .modal-close { cursor: pointer; font-size: 20px; color: var(--text-muted); line-height: 1; }
+        .modal-close:hover { color: var(--accent-cyan); }
+        
+        #modal-body { flex: 1; overflow-y: auto; padding: 0 0 20px 0; }
+        #modal-body::-webkit-scrollbar { width: 4px; }
+        #modal-body::-webkit-scrollbar-thumb { background: var(--border-color); }
+        
+        .modal-section-title { font-size: 12px; color: var(--accent-cyan); text-transform: uppercase; padding: 15px 20px 5px 20px; font-weight: 600; letter-spacing: 0.5px; }
+        
+        .modal-row { 
+            padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.2s; display: flex; flex-direction: column; gap: 4px;
+        }
+        .modal-row:hover { background: rgba(0, 242, 254, 0.1); }
+        .modal-row strong { font-size: 14px; font-weight: 500; color: var(--text-main); }
+        .modal-row small { color: var(--text-muted); font-size: 12px; }
+
+        /* INPUT ROW */
+        #chat-input-row { display: flex; border-top: 1px solid var(--border-color); background: rgba(10, 15, 25, 0.8); padding: 10px; align-items: center; z-index: 2; }
+        #text-input { flex: 1; border: none; padding: 12px; outline: none; font-size: 14px; background: rgba(255,255,255,0.05); color: var(--text-main); border-radius: 10px; font-family: 'Poppins', sans-serif; }
+        #submit-button { background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 100%); color: #050a12; border: none; padding: 12px 18px; cursor: pointer; font-weight: 600; border-radius: 10px; margin-left: 10px; font-family: 'Poppins', sans-serif; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="chat-container">
+        <div id="chat-header">
+            <span style="color:var(--accent-cyan);">🌐</span> Goodwill Language Support
+        </div>
+        
+        <div id="chat-logs"></div>
+
+        <div id="list-modal">
+            <div class="modal-header">
+                <span id="modal-title">Select Option</span>
+                <span class="modal-close" onclick="closeModal()">×</span>
+            </div>
+            <div id="modal-body"></div>
+        </div>
+
+        <div id="chat-input-row">
+            <input id="text-input" type="text" placeholder="Type name or command..." onkeypress="handleKey(event)">
+            <button id="submit-button" onclick="dispatchMessage('', '')">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatSessionId = localStorage.getItem("goodwill_token") || "client_" + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem("goodwill_token", chatSessionId);
+
+        const logsWindow = document.getElementById("chat-logs");
+        const entryField = document.getElementById("text-input");
+        const listModal = document.getElementById("list-modal");
+        const modalBody = document.getElementById("modal-body");
+
+        function addBubble(messageText, visualClass) {
+            if(!messageText) return;
+            const el = document.createElement("div");
+            el.className = `bubble ${visualClass}`;
+            // Format line breaks and bold asterisks to match WhatsApp
+            el.innerHTML = messageText.replace(/\n/g, '<br>').replace(/\*(.*?)\*/g, "<strong>$1</strong>");
+            logsWindow.appendChild(el);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => { logsWindow.scrollTop = logsWindow.scrollHeight; }, 50);
+        }
+
+        // Renders inline buttons (Quick Replies)
+        function renderInlineButtons(buttonsData) {
+            if (!buttonsData || buttonsData.length === 0) return;
+            const container = document.createElement("div");
+            container.className = "inline-btns-container";
+            
+            buttonsData.forEach(btnInfo => {
+                const btn = document.createElement("button");
+                btn.className = "inline-btn";
+                btn.innerHTML = btnInfo[1]; // Title is index 1
+                btn.onclick = () => {
+                    addBubble(btnInfo[1], "client");
+                    dispatchMessage("", btnInfo[0]); // ID is index 0
+                };
+                container.appendChild(btn);
+            });
+            logsWindow.appendChild(container);
+            scrollToBottom();
+        }
+
+        // Renders the trigger button that opens the Modal
+        function renderListTrigger(btnText, sectionsData) {
+            const btn = document.createElement("button");
+            btn.className = "list-trigger-btn";
+            btn.innerHTML = `☰ ${btnText}`;
+            btn.onclick = () => openModal(btnText, sectionsData);
+            
+            logsWindow.appendChild(btn);
+            scrollToBottom();
+        }
+
+        // Opens the Bottom Sheet Modal with Grouped Sections
+        function openModal(title, sectionsData) {
+            document.getElementById("modal-title").innerText = title;
+            modalBody.innerHTML = ""; // Clear old data
+
+            sectionsData.forEach(section => {
+                // Add Section Title
+                const secTitle = document.createElement("div");
+                secTitle.className = "modal-section-title";
+                secTitle.innerText = section.title;
+                modalBody.appendChild(secTitle);
+                
+                // Add Clickable Rows for that Section
+                section.rows.forEach(row => {
+                    const div = document.createElement("div");
+                    div.className = "modal-row";
+                    
+                    // Add description only if it exists
+                    const descHtml = row.description ? `<small>${row.description}</small>` : '';
+                    div.innerHTML = `<strong>${row.title}</strong>${descHtml}`;
+                    
+                    // Handle Click Event
+                    div.onclick = () => {
+                        closeModal();
+                        addBubble(row.title, "client");
+                        dispatchMessage("", row.id);
+                    };
+                    modalBody.appendChild(div);
+                });
+            });
+            
+            listModal.classList.add("open");
+        }
+
+        function closeModal() {
+            listModal.classList.remove("open");
+        }
+
+        async function dispatchMessage(manualText = "", actionId = "") {
+            let userQuery = manualText || entryField.value.trim();
+            if (!actionId && userQuery) addBubble(userQuery, "client");
+            entryField.value = "";
+            if (!userQuery && !actionId) return;
+
+            try {
+                const networkCall = await fetch("http://127.0.0.1:8000/api/webchat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ session_id: chatSessionId, message: userQuery, action_id: actionId })
+                });
+                
+                const payload = await networkCall.json();
+                
+                if (payload.type === "ignore") return;
+                
+                if (payload.text) {
+                    addBubble(payload.text, "agent");
+                }
+
+                // Render the specific UI components instructed by the Python backend
+                if (payload.type === "buttons") {
+                    renderInlineButtons(payload.buttons);
+                } 
+                else if (payload.type === "list_grouped") {
+                    renderListTrigger(payload.btn_text, payload.sections);
+                }
+            } catch (err) {
+                addBubble("System Error: Connection to servers lost.", "agent");
+                console.error(err);
+            }
+        }
+
+        function handleKey(event) { if (event.key === 'Enter') dispatchMessage('', ''); }
+
+        // Start the chat automatically when the widget loads
+        window.onload = () => dispatchMessage("", "init_greeting");
+    </script>
+</body>
+</html>

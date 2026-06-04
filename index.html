@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -226,7 +226,7 @@
             if (!userQuery && !actionId) return;
 
             try {
-                const networkCall = await fetch("http://127.0.0.1:8000/api/webchat", {
+                const networkCall = await fetch("https://gwl-bot.onrender.com/api/webchat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ session_id: chatSessionId, message: userQuery, action_id: actionId })

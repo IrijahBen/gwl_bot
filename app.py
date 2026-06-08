@@ -22,12 +22,16 @@ groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN")
+ADMIN_NUMBER = os.getenv("ADMIN_NUMBER")
 
 # ==========================================
 # 🧠 UNIFIED STATE MANAGEMENT
 # ==========================================
 user_states = {} 
 conversation_histories = {}
+
+# Memory to track which user YOU are currently talking to via Proxy
+admin_active_chat = {"current_user": None}
 
 STATE_BOT = "bot"
 STATE_HUMAN = "human"
@@ -37,6 +41,7 @@ STATE_HUMAN = "human"
 # ==========================================
 
 def send_whatsapp_text(to_number: str, text: str):
+    if not to_number or not text: return
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"}
     payload = {"messaging_product": "whatsapp", "to": to_number, "type": "text", "text": {"body": text}}
@@ -84,14 +89,13 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
         else:
             return {"type": "ignore"}
 
-    # 2. Initial Greetings (Silent trigger or manual text)
+    # 2. Initial Greetings
     if text_input in ["hi", "hello", "hey", "good morning", "good afternoon", "good day"] or action_id == "init_greeting":
         return {
             "type": "text",
             "text": "Good day! 👋 How are you doing today?"
         }
 
-    # Small talk response
     if text_input in ["im fine", "i'm fine", "good", "great", "doing well"]:
         return {
             "type": "buttons",
@@ -126,7 +130,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
     # 📁 4. SERVICE SUBCATEGORY ROUTING
     # ==========================================
 
-    # --- DOCUMENT TRANSLATION ---
     if action_id == "service_doc":
         return {
             "type": "list_grouped",
@@ -151,7 +154,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             ]
         }
 
-    # --- INTERPRETATION ---
     elif action_id == "service_interp":
         return {
             "type": "list_grouped",
@@ -177,7 +179,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             ]
         }
 
-    # --- SUBTITLING & VOICEOVER ---
     elif action_id == "service_sub":
         return {
             "type": "list_grouped",
@@ -201,7 +202,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             ]
         }
 
-    # --- LANGUAGE CLASSES ---
     elif action_id == "service_class":
         return {
             "type": "list_grouped",
@@ -225,7 +225,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             ]
         }
 
-    # --- TRANSCRIPTION ---
     elif action_id == "service_trans":
         return {
             "type": "list_grouped",
@@ -249,7 +248,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             ]
         }
 
-    # --- EQUIPMENT RENTAL ---
     elif action_id == "service_equip":
         return {
             "type": "list_grouped",
@@ -277,7 +275,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
     # 🔍 5. SUBCATEGORY DETAIL & SCREEN RESPONSES
     # ==========================================
 
-    # --- DOCUMENT SELECTIONS ---
     elif action_id == "cat_legal":
         return {
             "type": "buttons",
@@ -303,7 +300,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             "buttons": [("btn_quote", "💰 Get a Quote"), ("btn_specialist", "👤 Talk to Specialist"), ("btn_back", "🔙 Back to Menu")]
         }
 
-    # --- INTERPRETATION SELECTIONS ---
     elif action_id == "interp_simul":
         return {
             "type": "buttons",
@@ -329,7 +325,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             "buttons": [("btn_quote", "💰 Get a Quote"), ("btn_specialist", "👤 Talk to Specialist"), ("btn_back", "🔙 Back to Menu")]
         }
 
-    # --- SUBTITLING & VOICEOVER SELECTIONS ---
     elif action_id == "sub_burn":
         return {
             "type": "buttons",
@@ -349,7 +344,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             "buttons": [("btn_quote", "💰 Get a Quote"), ("btn_specialist", "👤 Talk to Specialist"), ("btn_back", "🔙 Back to Menu")]
         }
 
-    # --- LANGUAGE CLASS SELECTIONS ---
     elif action_id == "class_corp":
         return {
             "type": "buttons",
@@ -369,7 +363,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             "buttons": [("btn_quote", "💰 Get a Quote"), ("btn_specialist", "👤 Talk to Specialist"), ("btn_back", "🔙 Back to Menu")]
         }
 
-    # --- TRANSCRIPTION SELECTIONS ---
     elif action_id == "trans_verbatim":
         return {
             "type": "buttons",
@@ -389,7 +382,6 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
             "buttons": [("btn_quote", "💰 Get a Quote"), ("btn_specialist", "👤 Talk to Specialist"), ("btn_back", "🔙 Back to Menu")]
         }
 
-    # --- EQUIPMENT SELECTIONS ---
     elif action_id == "eq_booth":
         return {
             "type": "buttons",
@@ -420,12 +412,18 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
         }
         
     elif action_id in ["btn_specialist", "service_help"]:
-        # IMMEDIATELY hands over without asking for a name or generating tokens
         user_states[user_id] = STATE_HUMAN
+        
+        # Format the alert based on if it's a web user or WhatsApp user
+        if str(user_id).startswith("client_"):
+            alert_msg = f"🚨 *WEB CHAT ALERT* 🚨\n\nA user on the website is requesting a human.\nClient ID: {user_id}\n*(Note: You cannot reply to web users via WhatsApp proxy yet.)*"
+        else:
+            alert_msg = f"🚨 *NEW WHATSAPP HANDOVER* 🚨\n\n📞 Phone: {user_id}\n\nYou are now connected! Type your reply here.\nType */close* when finished."
+
         return {
             "type": "handover",
             "text": "📝 *Connecting to Live Specialist...*\n\nPlease stay on the chat. A human Language Specialist will join this conversation and reply to you directly in just a moment.\n\n💡 _If you'd rather keep using the automated service, just type *0* or *menu* at any time._",
-            "agent_alert": f"🚨 *NEW CUSTOMER HANDOVER* 🚨\n\n📞 Contact ID: {user_id}\n🌐 Service Required: SPECIALIST ASSISTANCE\n\n🤖 _The chatbot is now OFF for this client._"
+            "agent_alert": alert_msg
         }
         
     elif action_id == "btn_back":
@@ -463,13 +461,62 @@ def get_flow_response(user_id: str, text_input: str, action_id: str):
 
 def background_whatsapp_worker(sender_phone, message):
     msg_type = message.get("type")
-    text_input = message["text"]["body"].strip().lower() if msg_type == "text" else ""
-    action_id = ""
     
+    # We grab the pure text and a lowercase version for logic commands
+    raw_text = message.get("text", {}).get("body", "") if msg_type == "text" else ""
+    text_input = raw_text.strip().lower()
+    
+    action_id = ""
     if msg_type == "interactive":
         interactive_data = message["interactive"]
         action_id = interactive_data.get("list_reply", {}).get("id") or interactive_data.get("button_reply", {}).get("id")
-        
+
+    # ==========================================
+    # 🛡️ THE PYTHON PROXY INTERCEPTOR LOGIC 🛡️
+    # ==========================================
+    
+    # 1. Is the message from YOU (The Admin)?
+    if ADMIN_NUMBER and sender_phone == ADMIN_NUMBER:
+        if text_input == "/close":
+            active_user = admin_active_chat.get("current_user")
+            if active_user:
+                user_states[active_user] = STATE_BOT
+                admin_active_chat["current_user"] = None
+                send_whatsapp_text(ADMIN_NUMBER, f"✅ Chat with {active_user} closed. The Bot is back in control.")
+                send_whatsapp_text(active_user, "The live specialist has disconnected. The AI Assistant is back! How else can I help you?")
+            else:
+                send_whatsapp_text(ADMIN_NUMBER, "You are not currently chatting with anyone.")
+        else:
+            # You are typing a regular message. Send it invisibly to the user!
+            active_user = admin_active_chat.get("current_user")
+            if active_user:
+                if str(active_user).startswith("client_"):
+                    send_whatsapp_text(ADMIN_NUMBER, "⚠️ Cannot reply to website widget users via WhatsApp.")
+                else:
+                    send_whatsapp_text(active_user, raw_text)
+            else:
+                send_whatsapp_text(ADMIN_NUMBER, "⚠️ You are not connected to any user right now. You are talking to the bot.")
+        return # STOP execution here so the admin doesn't trigger the bot menus!
+
+    # 2. Is the message from a WhatsApp user currently talking to YOU?
+    if user_states.get(sender_phone) == STATE_HUMAN:
+        if text_input in ["0", "menu"]:
+            # They want out. Let the script continue down to reset them to bot mode.
+            if admin_active_chat.get("current_user") == sender_phone:
+                admin_active_chat["current_user"] = None
+                send_whatsapp_text(ADMIN_NUMBER, f"🔴 User {sender_phone} exited the live chat and returned to the bot menu.")
+        else:
+            # Forward their message to your personal phone
+            admin_active_chat["current_user"] = sender_phone
+            forwarded_msg = f"👤 *{sender_phone}* says:\n{raw_text}"
+            if ADMIN_NUMBER:
+                send_whatsapp_text(ADMIN_NUMBER, forwarded_msg)
+            return # STOP execution here so Groq AI doesn't reply to them!
+
+    # ==========================================
+    # Normal Bot Flow Continues Here
+    # ==========================================
+    
     resp = get_flow_response(sender_phone, text_input, action_id)
     
     if resp.get("type") == "list_grouped":
@@ -480,7 +527,8 @@ def background_whatsapp_worker(sender_phone, message):
         send_whatsapp_text(sender_phone, resp["text"])
     elif resp.get("type") == "handover":
         send_whatsapp_text(sender_phone, resp["text"])
-        send_whatsapp_text(sender_phone, resp["agent_alert"])
+        if ADMIN_NUMBER:
+            send_whatsapp_text(ADMIN_NUMBER, resp.get("agent_alert", ""))
 
 @app.get("/webhook")
 async def verify_webhook(request: Request):

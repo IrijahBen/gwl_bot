@@ -562,7 +562,20 @@ async def handle_web_chat(request: Request):
     text_input = body.get("message", "").strip().lower()
     action_id = body.get("action_id", "")
     
+    # 1. If they are already in live chat, forward their messages to your WhatsApp
+    if user_states.get(session_id) == STATE_HUMAN and text_input not in ["0", "menu"]:
+        if ADMIN_NUMBER:
+            raw_msg = body.get("message", "")
+            send_whatsapp_text(ADMIN_NUMBER, f"🌐 *Website User* says:\n{raw_msg}")
+        return {"type": "ignore"}
+
+    # 2. Process standard bot menus and AI
     resp = get_flow_response(session_id, text_input, action_id)
+    
+    # 3. 🚨 The Missing Link: Send the handover alert to Admin's WhatsApp
+    if resp.get("type") == "handover" and ADMIN_NUMBER:
+        send_whatsapp_text(ADMIN_NUMBER, resp.get("agent_alert", ""))
+        
     return resp
 
 if __name__ == "__main__":
